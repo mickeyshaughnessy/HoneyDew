@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "HoneyDew",
+    "slug": "honeydew",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#fdf8f0"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.honeydew.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "HoneyDew uses your photo library to attach pictures to job requests.",
+        "NSCameraUsageDescription": "HoneyDew uses your camera to photograph the work that needs to be done."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#fdf8f0"
+      },
+      "package": "com.honeydew.app",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA"
+      ]
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-image-picker"
+    ],
+    "extra": {
+      "apiUrl": "https://honeydew.example.com"
+    }
+  }
+}
