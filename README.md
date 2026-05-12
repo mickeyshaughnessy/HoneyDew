@@ -89,3 +89,20 @@ HoneyDew uses these RSE endpoints:
 - `GET /nearby` — active providers near an address
 
 RSE docs: https://rse-api.com:5003/api_docs.html
+
+## Image credits
+
+Images in `images/` are sourced from Wikimedia Commons (CC licensed) and Unsplash (free commercial license):
+
+| File | Source | License |
+|------|--------|---------|
+| robot_butler.jpg | Wikimedia Commons — Robot_Butler.jpg | CC BY-SA |
+| robot_mop.jpg | Wikimedia Commons — Robomop.jpg | CC BY-SA |
+| robot_window.png | Wikimedia Commons — Window_Cleaning_Robots.png | CC BY-SA |
+| robot_housekeeping.png | Wikimedia Commons — Housekeeping_Robot.png | CC BY-SA |
+| robot_vacuum.jpg | Wikimedia Commons — Robot-aspirador.jpg | CC BY-SA |
+| robot_duct.jpg | Wikimedia Commons — ANATROLLER ARI-100 | CC BY-SA |
+| robot_roomba.jpg | Unsplash — Kowon vn | Unsplash License |
+| robot_floor_clean.jpg | Unsplash — Dreame Vacuum Cleaner | Unsplash License |
+| robot_room.jpg | Unsplash — Alexander Mils | Unsplash License |
+| robot_vacuum2.jpg | Unsplash — Andrey Matveev | Unsplash License |
