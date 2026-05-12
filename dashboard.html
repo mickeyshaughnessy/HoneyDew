@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — HoneyDew</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">Honey<span>Dew</span></a>
+  <div class="nav-links">
+    <span class="text-muted" id="navUser" style="font-size:0.9em"></span>
+    <a href="/post_job" class="btn btn-primary btn-sm">+ Post a job</a>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">Sign out</button>
+  </div>
+</nav>
+
+<div class="page">
+
+  <!-- Stats bar -->
+  <div style="display:flex;gap:16px;margin-bottom:32px;flex-wrap:wrap">
+    <div class="card" style="flex:1;min-width:140px;text-align:center;padding:18px">
+      <div style="font-size:2em;font-weight:800;color:var(--honey)" id="statOpen">—</div>
+      <div class="text-muted" style="font-size:0.85em;margin-top:4px">Open requests</div>
+    </div>
+    <div class="card" style="flex:1;min-width:140px;text-align:center;padding:18px">
+      <div style="font-size:2em;font-weight:800;color:#0c5460" id="statActive">—</div>
+      <div class="text-muted" style="font-size:0.85em;margin-top:4px">Active jobs</div>
+    </div>
+    <div class="card" style="flex:1;min-width:140px;text-align:center;padding:18px">
+      <div style="font-size:2em;font-weight:800;color:var(--success)" id="statDone">—</div>
+      <div class="text-muted" style="font-size:0.85em;margin-top:4px">Completed</div>
+    </div>
+  </div>
+
+  <!-- Open requests (bids) -->
+  <div class="section-header">
+    <h2>Open requests</h2>
+    <a href="/post_job" class="btn btn-primary btn-sm">+ New request</a>
+  </div>
+  <div id="bidsContainer">
+    <div class="empty"><div class="icon">📋</div><p>Loading…</p></div>
+  </div>
+
+  <!-- Active jobs (matched) -->
+  <div class="section-header mt-8">
+    <h2>Active jobs</h2>
+  </div>
+  <div id="jobsContainer">
+    <div class="empty"><div class="icon">🔨</div><p>Loading…</p></div>
+  </div>
+
+</div>
+
+<!-- Rating modal -->
+<div class="modal-overlay" id="ratingModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('ratingModal')">×</button>
+    <h2>Rate this job</h2>
+    <p class="text-muted mb-4">How did it go? Your rating helps other homeowners.</p>
+    <div id="ratingAlert"></div>
+    <div class="stars" id="starPicker" style="justify-content:center;margin:24px 0">
+      <span class="star" data-v="1">★</span>
+      <span class="star" data-v="2">★</span>
+      <span class="star" data-v="3">★</span>
+      <span class="star" data-v="4">★</span>
+      <span class="star" data-v="5">★</span>
+    </div>
+    <input type="hidden" id="ratingValue" value="0">
+    <input type="hidden" id="ratingJobId" value="">
+    <button class="btn btn-primary" style="width:100%" onclick="submitRating()">Submit rating</button>
+  </div>
+</div>
+
+<script>
+let selectedRating = 0;
+
+async function loadDashboard() {
+  // Username
+  const me = await fetch('/api/me').then(r => r.json());
+  if (!me.username) { window.location.href = '/'; return; }
+  document.getElementById('navUser').textContent = `Hi, ${me.username}`;
+
+  const [bidsRes, jobsRes] = await Promise.all([
+    fetch('/api/bids').then(r => r.json()),
+    fetch('/api/jobs').then(r => r.json()),
+  ]);
+
+  renderBids(bidsRes.bids || []);
+  renderJobs(jobsRes.jobs || []);
+}
+
+function renderBids(bids) {
+  document.getElementById('statOpen').textContent = bids.length;
+  const el = document.getElementById('bidsContainer');
+  if (!bids.length) {
+    el.innerHTML = `<div class="empty"><div class="icon">📋</div>
+      <p>No open requests. <a href="/post_job">Post your first job →</a></p></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="card-grid">${bids.map(bidCard).join('')}</div>`;
+}
+
+function bidCard(b) {
+  const exp = new Date(b.end_time * 1000);
+  const expStr = exp.toLocaleDateString(undefined, {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  return `<div class="job-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+      <span class="badge badge-pending">Waiting for match</span>
+      <span class="price">$${Number(b.price).toFixed(2)}</span>
+    </div>
+    <h3>${escHtml(b.service)}</h3>
+    <div class="meta">📍 ${escHtml(b.address || '—')} &nbsp;·&nbsp; Expires ${expStr}</div>
+    <div class="actions">
+      <button class="btn btn-danger btn-sm" onclick="cancelBid('${b.bid_id}')">Cancel request</button>
+    </div>
+  </div>`;
+}
+
+function renderJobs(jobs) {
+  const active   = jobs.filter(j => !j.completed_at);
+  const complete = jobs.filter(j =>  j.completed_at);
+  document.getElementById('statActive').textContent   = active.length;
+  document.getElementById('statDone').textContent     = complete.length;
+
+  const el = document.getElementById('jobsContainer');
+  if (!jobs.length) {
+    el.innerHTML = `<div class="empty"><div class="icon">🔨</div><p>No active or completed jobs yet.</p></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="card-grid">${jobs.map(jobCard).join('')}</div>`;
+}
+
+function jobCard(j) {
+  const isComplete = !!j.completed_at;
+  const providerLine = j.provider_username
+    ? `<div class="meta">👷 ${escHtml(j.provider_username)} &nbsp;·&nbsp; Rep: ${j.provider_reputation ?? '—'}</div>`
+    : '';
+  const statusBadge = isComplete
+    ? '<span class="badge badge-complete">Completed</span>'
+    : '<span class="badge badge-matched">Provider matched</span>';
+  const rateBtn = (!isComplete && !j.buyer_signed)
+    ? `<button class="btn btn-primary btn-sm" onclick="openRating('${j.job_id}')">Mark complete & rate</button>`
+    : '';
+  const detailBtn = `<a href="/job/${j.job_id}" class="btn btn-ghost btn-sm">View details</a>`;
+
+  return `<div class="job-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+      ${statusBadge}
+      <span class="price">$${Number(j.price).toFixed(2)}</span>
+    </div>
+    <h3>${escHtml(j.service)}</h3>
+    ${providerLine}
+    <div class="actions">${rateBtn}${detailBtn}</div>
+  </div>`;
+}
+
+async function cancelBid(bidId) {
+  if (!confirm('Cancel this request?')) return;
+  const res = await fetch(`/api/bids/${bidId}`, {method:'DELETE'});
+  if (res.ok) loadDashboard();
+  else alert('Could not cancel — please try again.');
+}
+
+function openRating(jobId) {
+  selectedRating = 0;
+  document.getElementById('ratingJobId').value = jobId;
+  document.getElementById('ratingAlert').innerHTML = '';
+  document.querySelectorAll('.star').forEach(s => s.classList.remove('filled'));
+  openModal('ratingModal');
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+// Star picker
+document.getElementById('starPicker').addEventListener('click', e => {
+  const star = e.target.closest('.star');
+  if (!star) return;
+  selectedRating = parseInt(star.dataset.v, 10);
+  document.querySelectorAll('.star').forEach(s => {
+    s.classList.toggle('filled', parseInt(s.dataset.v, 10) <= selectedRating);
+  });
+});
+
+async function submitRating() {
+  if (!selectedRating) {
+    document.getElementById('ratingAlert').innerHTML =
+      '<div class="alert alert-error">Please choose a star rating.</div>';
+    return;
+  }
+  const jobId = document.getElementById('ratingJobId').value;
+  const res = await fetch(`/api/jobs/${jobId}/sign`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({rating: selectedRating}),
+  });
+  const data = await res.json();
+  if (res.ok) {
+    closeModal('ratingModal');
+    loadDashboard();
+  } else {
+    document.getElementById('ratingAlert').innerHTML =
+      `<div class="alert alert-error">${data.error || 'Could not submit rating.'}</div>`;
+  }
+}
+
+async function logout() {
+  await fetch('/api/logout', {method:'POST'});
+  window.location.href = '/';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+loadDashboard();
+</script>
+</body>
+</html>

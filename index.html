@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HoneyDew — Home Services, Simplified</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">Honey<span>Dew</span></a>
+  <div class="nav-links" id="navLinks">
+    <button class="btn btn-outline btn-sm" onclick="openModal('loginModal')">Sign in</button>
+    <button class="btn btn-primary btn-sm" onclick="openModal('registerModal')">Get started</button>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <h1>Home services,<br><em>done right.</em></h1>
+  <p>Post any repair, cleaning, or maintenance job and get matched with vetted local pros — no phone tag, no surprises.</p>
+  <div class="hero-cta">
+    <button class="btn btn-primary" style="font-size:1.05em;padding:12px 28px" onclick="openModal('registerModal')">Post a job for free</button>
+    <button class="btn btn-outline" style="font-size:1.05em;padding:12px 28px" onclick="openModal('loginModal')">Sign in</button>
+  </div>
+</section>
+
+<!-- Categories -->
+<div class="container" style="padding-bottom:60px">
+  <h2 style="text-align:center;margin-bottom:8px;font-size:1.3em">What do you need done?</h2>
+  <p class="text-muted" style="text-align:center;margin-bottom:24px">Click a category to post a job</p>
+  <div class="categories" id="categoryGrid"></div>
+</div>
+
+<!-- How it works -->
+<div style="background:#fff;border-top:1px solid var(--border);padding:60px 20px">
+  <div class="container">
+    <h2 style="text-align:center;margin-bottom:40px;font-size:1.5em">How it works</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:32px;text-align:center">
+      <div>
+        <div style="font-size:2.5em;margin-bottom:12px">📝</div>
+        <h3 style="margin-bottom:8px">1. Describe the job</h3>
+        <p class="text-muted">Tell us what needs fixing, your location, and your budget.</p>
+      </div>
+      <div>
+        <div style="font-size:2.5em;margin-bottom:12px">🤝</div>
+        <h3 style="margin-bottom:8px">2. Get matched</h3>
+        <p class="text-muted">Our AI matches your request with qualified local providers in minutes.</p>
+      </div>
+      <div>
+        <div style="font-size:2.5em;margin-bottom:12px">✅</div>
+        <h3 style="margin-bottom:8px">3. Job done</h3>
+        <p class="text-muted">Rate the provider when the work is complete and build the community.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Login Modal -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('loginModal')">×</button>
+    <h2>Sign in</h2>
+    <div id="loginAlert"></div>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input class="form-control" id="loginUser" type="text" placeholder="your_username" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-control" id="loginPass" type="password" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Sign in</button>
+    <p class="text-muted mt-4" style="text-align:center">
+      No account? <a href="#" onclick="switchModal('loginModal','registerModal')">Get started free</a>
+    </p>
+  </div>
+</div>
+
+<!-- Register Modal -->
+<div class="modal-overlay" id="registerModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('registerModal')">×</button>
+    <h2>Create your account</h2>
+    <div id="registerAlert"></div>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input class="form-control" id="regUser" type="text" placeholder="choose_a_username" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-control" id="regPass" type="password" autocomplete="new-password">
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="doRegister()">Create account</button>
+    <p class="text-muted mt-4" style="text-align:center">
+      Have an account? <a href="#" onclick="switchModal('registerModal','loginModal')">Sign in</a>
+    </p>
+  </div>
+</div>
+
+<script>
+const CATEGORIES = [
+  { icon: '🔧', label: 'Plumbing',      value: 'Plumbing repair' },
+  { icon: '⚡', label: 'Electrical',    value: 'Electrical work' },
+  { icon: '🧹', label: 'Cleaning',      value: 'House cleaning' },
+  { icon: '🌿', label: 'Landscaping',   value: 'Landscaping and yard work' },
+  { icon: '🎨', label: 'Painting',      value: 'Painting' },
+  { icon: '❄️', label: 'HVAC',          value: 'HVAC service' },
+  { icon: '🪚', label: 'Carpentry',     value: 'Carpentry and woodwork' },
+  { icon: '🏠', label: 'Handyman',      value: 'General handyman' },
+  { icon: '🔩', label: 'Appliances',    value: 'Appliance repair' },
+  { icon: '🐜', label: 'Pest Control',  value: 'Pest control' },
+  { icon: '🪟', label: 'Windows',       value: 'Window cleaning or repair' },
+  { icon: '🚿', label: 'Bathrooms',     value: 'Bathroom renovation or repair' },
+];
+
+function buildCategories() {
+  const grid = document.getElementById('categoryGrid');
+  CATEGORIES.forEach(c => {
+    const tile = document.createElement('a');
+    tile.className = 'category-tile';
+    tile.href = '#';
+    tile.innerHTML = `<div class="icon">${c.icon}</div><div class="label">${c.label}</div>`;
+    tile.onclick = (e) => {
+      e.preventDefault();
+      sessionStorage.setItem('prefillCategory', c.value);
+      openModal('registerModal');
+    };
+    grid.appendChild(tile);
+  });
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+function switchModal(from, to) {
+  closeModal(from);
+  openModal(to);
+}
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+function showAlert(containerId, msg, type='error') {
+  document.getElementById(containerId).innerHTML =
+    `<div class="alert alert-${type}">${msg}</div>`;
+}
+
+async function doLogin() {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  if (!username || !password) return showAlert('loginAlert', 'Please fill in both fields.');
+
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({username, password}),
+  });
+  const data = await res.json();
+  if (res.ok) {
+    window.location.href = '/dashboard';
+  } else {
+    showAlert('loginAlert', data.error || 'Login failed.');
+  }
+}
+
+async function doRegister() {
+  const username = document.getElementById('regUser').value.trim();
+  const password = document.getElementById('regPass').value;
+  if (!username || !password) return showAlert('registerAlert', 'Please fill in both fields.');
+  if (password.length < 8) return showAlert('registerAlert', 'Password must be at least 8 characters.');
+
+  const res = await fetch('/api/register', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({username, password}),
+  });
+  const data = await res.json();
+  if (res.ok) {
+    window.location.href = '/post_job';
+  } else {
+    showAlert('registerAlert', data.error || 'Registration failed.');
+  }
+}
+
+// Enter key support
+['loginUser','loginPass'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+});
+['regUser','regPass'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => { if (e.key==='Enter') doRegister(); });
+});
+
+buildCategories();
+
+// If already logged in, redirect
+fetch('/api/me').then(r => { if (r.ok) window.location.href = '/dashboard'; });
+</script>
+</body>
+</html>

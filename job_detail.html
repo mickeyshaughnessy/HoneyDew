@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Details — HoneyDew</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">Honey<span>Dew</span></a>
+  <div class="nav-links">
+    <a href="/dashboard" class="btn btn-ghost btn-sm">← Dashboard</a>
+  </div>
+</nav>
+
+<div class="page" style="max-width:640px">
+  <div id="content">
+    <div class="empty"><div class="icon">⏳</div><p>Loading…</p></div>
+  </div>
+</div>
+
+<!-- Rating modal -->
+<div class="modal-overlay" id="ratingModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('ratingModal')">×</button>
+    <h2>Rate this job</h2>
+    <p class="text-muted mb-4">Your rating helps other homeowners find great pros.</p>
+    <div id="ratingAlert"></div>
+    <div class="stars" id="starPicker" style="justify-content:center;margin:24px 0">
+      <span class="star" data-v="1">★</span>
+      <span class="star" data-v="2">★</span>
+      <span class="star" data-v="3">★</span>
+      <span class="star" data-v="4">★</span>
+      <span class="star" data-v="5">★</span>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="submitRating()">Submit & complete job</button>
+  </div>
+</div>
+
+<script>
+let selectedRating = 0;
+const jobId = location.pathname.split('/').pop();
+
+async function loadJob() {
+  const [jobsRes, bidsRes] = await Promise.all([
+    fetch('/api/jobs').then(r => r.json()),
+    fetch('/api/bids').then(r => r.json()),
+  ]);
+
+  const job  = (jobsRes.jobs  || []).find(j => j.job_id  === jobId);
+  const bid  = (bidsRes.bids  || []).find(b => b.bid_id  === jobId);  // fallback
+
+  if (job) renderJob(job);
+  else if (bid) renderBid(bid);
+  else document.getElementById('content').innerHTML =
+    `<div class="empty"><div class="icon">🔍</div><p>Job not found.</p></div>`;
+}
+
+function renderJob(j) {
+  const isComplete = !!j.completed_at;
+  const completedLine = isComplete
+    ? `<div class="meta">✅ Completed ${new Date(j.completed_at*1000).toLocaleDateString()}</div>` : '';
+  const rateBtn = (!isComplete && !j.buyer_signed)
+    ? `<button class="btn btn-primary" onclick="openModal('ratingModal')">Mark complete & rate</button>` : '';
+  const providerSection = j.provider_username ? `
+    <div class="card mt-4">
+      <h2 style="font-size:1em;font-weight:700;margin-bottom:12px">Your provider</h2>
+      <div style="font-size:1.1em;font-weight:600">👷 ${escHtml(j.provider_username)}</div>
+      <div class="text-muted" style="margin-top:4px">Reputation: ${j.provider_reputation ?? '—'}</div>
+    </div>` : '';
+
+  document.getElementById('content').innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      ${isComplete
+        ? '<span class="badge badge-complete" style="font-size:0.95em">Completed</span>'
+        : '<span class="badge badge-matched" style="font-size:0.95em">Provider matched</span>'}
+      <span class="price" style="font-size:1.4em">$${Number(j.price).toFixed(2)}</span>
+    </div>
+    <div class="card">
+      <h1 style="font-size:1.2em;font-weight:700;margin-bottom:10px">${escHtml(j.service)}</h1>
+      <div class="meta">📍 ${escHtml(j.address || '—')}</div>
+      <div class="meta">💳 ${escHtml(j.payment_method || '—')}</div>
+      ${completedLine}
+    </div>
+    ${providerSection}
+    ${rateBtn ? `<div class="mt-4">${rateBtn}</div>` : ''}
+  `;
+}
+
+function renderBid(b) {
+  const exp = new Date(b.end_time * 1000).toLocaleString();
+  document.getElementById('content').innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+      <span class="badge badge-pending" style="font-size:0.95em">Waiting for match</span>
+      <span class="price" style="font-size:1.4em">$${Number(b.price).toFixed(2)}</span>
+    </div>
+    <div class="card">
+      <h1 style="font-size:1.2em;font-weight:700;margin-bottom:10px">${escHtml(b.service)}</h1>
+      <div class="meta">📍 ${escHtml(b.address || '—')}</div>
+      <div class="meta">⏰ Expires ${exp}</div>
+      <div class="meta">💳 ${escHtml(b.payment_method || '—')}</div>
+    </div>
+    <div class="mt-4">
+      <button class="btn btn-danger" onclick="cancelAndBack('${b.bid_id}')">Cancel request</button>
+    </div>
+  `;
+}
+
+async function cancelAndBack(bidId) {
+  if (!confirm('Cancel this request?')) return;
+  await fetch(`/api/bids/${bidId}`, {method:'DELETE'});
+  window.location.href = '/dashboard';
+}
+
+// Star picker
+let _rating = 0;
+document.getElementById('starPicker').addEventListener('click', e => {
+  const star = e.target.closest('.star');
+  if (!star) return;
+  _rating = parseInt(star.dataset.v, 10);
+  document.querySelectorAll('.star').forEach(s => {
+    s.classList.toggle('filled', parseInt(s.dataset.v, 10) <= _rating);
+  });
+});
+
+async function submitRating() {
+  if (!_rating) {
+    document.getElementById('ratingAlert').innerHTML =
+      '<div class="alert alert-error">Please choose a star rating.</div>';
+    return;
+  }
+  const res = await fetch(`/api/jobs/${jobId}/sign`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({rating: _rating}),
+  });
+  if (res.ok) window.location.href = '/dashboard';
+  else {
+    const d = await res.json();
+    document.getElementById('ratingAlert').innerHTML =
+      `<div class="alert alert-error">${d.error || 'Could not submit.'}</div>`;
+  }
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
+});
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+fetch('/api/me').then(r => { if (!r.ok) window.location.href='/'; else loadJob(); });
+</script>
+</body>
+</html>

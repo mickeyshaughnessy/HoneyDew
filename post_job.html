@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Post a Job — HoneyDew</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">Honey<span>Dew</span></a>
+  <div class="nav-links">
+    <a href="/dashboard" class="btn btn-ghost btn-sm">← Dashboard</a>
+  </div>
+</nav>
+
+<div class="page" style="max-width:600px">
+  <h1 style="font-size:1.6em;font-weight:800;margin-bottom:6px">Post a new job</h1>
+  <p class="text-muted mb-4">Describe what you need — our AI matches you with the right local pro.</p>
+
+  <div id="alert"></div>
+
+  <div class="card">
+    <!-- Category -->
+    <div class="form-group">
+      <label class="form-label">Service category</label>
+      <select class="form-control" id="category">
+        <option value="">Select a category…</option>
+        <option value="Plumbing repair">🔧 Plumbing</option>
+        <option value="Electrical work">⚡ Electrical</option>
+        <option value="House cleaning">🧹 Cleaning</option>
+        <option value="Landscaping and yard work">🌿 Landscaping</option>
+        <option value="Painting">🎨 Painting</option>
+        <option value="HVAC service">❄️ HVAC</option>
+        <option value="Carpentry and woodwork">🪚 Carpentry</option>
+        <option value="General handyman">🏠 Handyman</option>
+        <option value="Appliance repair">🔩 Appliance repair</option>
+        <option value="Pest control">🐜 Pest control</option>
+        <option value="Window cleaning or repair">🪟 Windows</option>
+        <option value="Bathroom renovation or repair">🚿 Bathrooms</option>
+      </select>
+    </div>
+
+    <!-- Description -->
+    <div class="form-group">
+      <label class="form-label">Describe the job</label>
+      <textarea class="form-control" id="description" rows="4"
+        placeholder="e.g. Kitchen faucet is dripping constantly, needs new washer or full replacement. Can hear it from the next room."></textarea>
+      <div class="text-muted" style="margin-top:4px;font-size:0.8em">Be specific — the more detail, the better the match.</div>
+    </div>
+
+    <!-- Address -->
+    <div class="form-group">
+      <label class="form-label">Service address</label>
+      <input class="form-control" id="address" type="text"
+        placeholder="123 Maple Street, Denver, CO 80202">
+    </div>
+
+    <!-- Price & payment -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="form-group">
+        <label class="form-label">Your budget (USD)</label>
+        <input class="form-control" id="price" type="number" min="10" step="5" placeholder="150">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Payment method</label>
+        <select class="form-control" id="payment">
+          <option value="credit_card">Credit card</option>
+          <option value="cash">Cash</option>
+          <option value="paypal">PayPal</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Urgency hint -->
+    <div class="form-group">
+      <label class="form-label">Urgency</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap" id="urgencyPicker">
+        <button type="button" class="btn btn-ghost urgency-btn" data-v="flexible">📅 Flexible</button>
+        <button type="button" class="btn btn-ghost urgency-btn" data-v="this week">📆 This week</button>
+        <button type="button" class="btn btn-ghost urgency-btn" data-v="urgent">🚨 Urgent</button>
+      </div>
+      <input type="hidden" id="urgency" value="flexible">
+    </div>
+
+    <button class="btn btn-primary" style="width:100%;padding:12px;font-size:1em;margin-top:8px"
+      onclick="submitJob()">Post job →</button>
+  </div>
+
+  <!-- Nearby providers preview -->
+  <div class="mt-8" id="nearbySection" style="display:none">
+    <div class="section-header">
+      <h2>Providers near you</h2>
+    </div>
+    <div id="nearbyList"></div>
+  </div>
+</div>
+
+<script>
+// Pre-fill category from landing page click
+const prefill = sessionStorage.getItem('prefillCategory');
+if (prefill) {
+  document.getElementById('category').value = prefill;
+  sessionStorage.removeItem('prefillCategory');
+}
+
+// Urgency picker
+document.getElementById('urgencyPicker').addEventListener('click', e => {
+  const btn = e.target.closest('.urgency-btn');
+  if (!btn) return;
+  document.querySelectorAll('.urgency-btn').forEach(b => {
+    b.classList.toggle('btn-primary', b === btn);
+    b.classList.toggle('btn-ghost',   b !== btn);
+  });
+  document.getElementById('urgency').value = btn.dataset.v;
+});
+
+// Load nearby providers when address is filled
+let nearbyTimer;
+document.getElementById('address').addEventListener('input', () => {
+  clearTimeout(nearbyTimer);
+  nearbyTimer = setTimeout(() => loadNearby(), 800);
+});
+
+async function loadNearby() {
+  const address = document.getElementById('address').value.trim();
+  if (address.length < 10) return;
+  const res  = await fetch(`/api/nearby?address=${encodeURIComponent(address)}`);
+  const data = await res.json();
+  const services = data.services || [];
+  const sec = document.getElementById('nearbySection');
+  const list = document.getElementById('nearbyList');
+  if (!services.length) { sec.style.display='none'; return; }
+  sec.style.display = 'block';
+  list.innerHTML = `<div class="card-grid">${services.slice(0,6).map(s =>
+    `<div class="job-card" style="cursor:default">
+      <div class="meta" style="margin-bottom:6px">📍 ${(s.distance||0).toFixed(1)} mi away</div>
+      <h3 style="font-size:0.92em">${escHtml(s.service)}</h3>
+      <div class="text-muted" style="margin-top:6px;font-size:0.8em">Rep: ${s.provider_reputation ?? '—'}</div>
+    </div>`
+  ).join('')}</div>`;
+}
+
+async function submitJob() {
+  const category    = document.getElementById('category').value;
+  const description = document.getElementById('description').value.trim();
+  const address     = document.getElementById('address').value.trim();
+  const price       = document.getElementById('price').value;
+  const payment     = document.getElementById('payment').value;
+  const urgency     = document.getElementById('urgency').value;
+  const alertEl     = document.getElementById('alert');
+  alertEl.innerHTML = '';
+
+  if (!category)    return showAlert('Please select a service category.');
+  if (!description) return showAlert('Please describe the job.');
+  if (!address)     return showAlert('Please enter a service address.');
+  if (!price || Number(price) <= 0) return showAlert('Please enter a valid budget.');
+
+  const fullDescription = `${description} Urgency: ${urgency}.`;
+
+  const res = await fetch('/api/bids', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      category,
+      description: fullDescription,
+      address,
+      price: Number(price),
+      payment_method: payment,
+    }),
+  });
+  const data = await res.json();
+  if (res.ok) {
+    window.location.href = '/dashboard';
+  } else {
+    showAlert(data.error || 'Could not post job. Please try again.');
+  }
+}
+
+function showAlert(msg) {
+  document.getElementById('alert').innerHTML =
+    `<div class="alert alert-error">${escHtml(msg)}</div>`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Auth check
+fetch('/api/me').then(r => { if (!r.ok) window.location.href = '/'; });
+</script>
+</body>
+</html>
